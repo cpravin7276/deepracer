@@ -5,13 +5,11 @@
       "low": -30.0
     },
     "speed": {
-      "high": 2.0,
-      "low": 0.5
+      "high": 4.0,
+      "low": 2.5
     }
   },
-  "sensor": [
-    "STEREO_CAMERAS"
-  ],
+  "sensor": ["STEREO_CAMERAS"],
   "neural_network": "DEEP_CONVOLUTIONAL_NETWORK_SHALLOW",
   "version": "5",
   "training_algorithm": "sac",

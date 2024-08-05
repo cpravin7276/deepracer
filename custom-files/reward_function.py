@@ -1,33 +1,93 @@
+import math
+
 def reward_function(params):
     '''
-    Example of penalize steering, which helps mitigate zig-zag behaviors
+    Reward function for AWS DeepRacer considering dynamic U-turns
     '''
-    
-    # Read input parameters
-    distance_from_center = params['distance_from_center']
+    # Read input variables
     track_width = params['track_width']
-    steering = abs(params['steering_angle']) # Only need the absolute steering angle
+    distance_from_center = params['distance_from_center']
+    steering_angle = abs(params['steering_angle'])
+    speed = params['speed']
+    all_wheels_on_track = params['all_wheels_on_track']
+    progress = params['progress']
+    steps = params['steps']
+    is_left_of_center = params['is_left_of_center']
+    closest_waypoints = params['closest_waypoints']
+    waypoints = params['waypoints']
+    is_offtrack = params['is_offtrack']
 
-    # Calculate 3 marks that are farther and father away from the center line
+    # Calculate markers
     marker_1 = 0.1 * track_width
     marker_2 = 0.25 * track_width
     marker_3 = 0.5 * track_width
 
-    # Give higher reward if the car is closer to center line and vice versa
-    if distance_from_center <= marker_1:
-        reward = 1
-    elif distance_from_center <= marker_2:
-        reward = 0.5
-    elif distance_from_center <= marker_3:
-        reward = 0.1
+    # Initialize reward
+    reward = 1.0
+
+    # Get the indices of the closest waypoints
+    prev_wp = closest_waypoints[0]
+    next_wp = closest_waypoints[1]
+
+    # Calculate the direction of the turn based on the curvature
+    if len(waypoints) > 1:
+        prev_wp_pos = waypoints[prev_wp]
+        next_wp_pos = waypoints[next_wp]
+        future_wp = (next_wp + 1) % len(waypoints)  # Next waypoint after the next
+        future_wp_pos = waypoints[future_wp]
+
+        # Calculate vectors
+        vector_a = [next_wp_pos[0] - prev_wp_pos[0], next_wp_pos[1] - prev_wp_pos[1]]
+        vector_b = [future_wp_pos[0] - next_wp_pos[0], future_wp_pos[1] - next_wp_pos[1]]
+
+        # Calculate the angle between vectors
+        dot_product = vector_a[0] * vector_b[0] + vector_a[1] * vector_b[1]
+        mag_a = math.sqrt(vector_a[0] ** 2 + vector_a[1] ** 2)
+        mag_b = math.sqrt(vector_b[0] ** 2 + vector_b[1] ** 2)
+        angle = math.acos(dot_product / (mag_a * mag_b))
+
+        # Check if the angle indicates a sharp turn
+        if angle < 0.4:  # This threshold can be adjusted based on track analysis
+            if vector_a[0] * vector_b[1] - vector_a[1] * vector_b[0] > 0:
+                # Left U-turn
+                if is_left_of_center:
+                    reward += 1.0
+                else:
+                    reward -= 1.0  # Penalize for being on the wrong side
+            else:
+                # Right U-turn
+                if not is_left_of_center:
+                    reward += 1.0
+                else:
+                    reward -= 1.0  # Penalize for being on the wrong side
+
+    # Reward staying on track
+    if all_wheels_on_track and not is_offtrack:
+        reward += 1.0
+
+        # Reward based on distance from center
+        if distance_from_center <= marker_1:
+            reward += 1.0
+        elif distance_from_center <= marker_2:
+            reward += 0.5
+        elif distance_from_center <= marker_3:
+            reward += 0.1
+
+        # Penalize for high steering angles to prevent zig-zagging
+        if steering_angle > 15:
+            reward *= 0.8
+
+        # Reward higher speeds
+        SPEED_THRESHOLD = 3.5
+        if speed > SPEED_THRESHOLD:
+            reward += 1.0
+        elif speed > 3.0:
+            reward += 0.5
+
+        # Reward progress made
+        if steps > 0:
+            reward += (progress / steps) * 100
     else:
-        reward = 1e-3  # likely crashed/ close to off track
-
-    # Steering penality threshold, change the number based on your action space setting
-    ABS_STEERING_THRESHOLD = 15
-
-    # Penalize reward if the car is steering too much
-    if steering > ABS_STEERING_THRESHOLD:
-        reward *= 0.8
+        reward = 1e-3  # Minimum reward for being off track
 
     return float(reward)
