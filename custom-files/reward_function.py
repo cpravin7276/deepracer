@@ -2,7 +2,7 @@ import math
 
 def reward_function(params):
     '''
-    Reward function for AWS DeepRacer considering dynamic U-turns
+    Reward function for AWS DeepRacer considering dynamic U-turns and incentivizing speed and progress
     '''
     # Read input variables
     track_width = params['track_width']
@@ -47,19 +47,19 @@ def reward_function(params):
         angle = math.acos(dot_product / (mag_a * mag_b))
 
         # Check if the angle indicates a sharp turn
-        if angle < 0.4:  # This threshold can be adjusted based on track analysis
+        if angle < 0.5:  # Adjusted threshold
             if vector_a[0] * vector_b[1] - vector_a[1] * vector_b[0] > 0:
                 # Left U-turn
                 if is_left_of_center:
-                    reward += 1.0
+                    reward += 1.5  # Increased reward for correct side in sharp turn
                 else:
-                    reward -= 1.0  # Penalize for being on the wrong side
+                    reward -= 0.5  # Reduced penalty for being on the wrong side
             else:
                 # Right U-turn
                 if not is_left_of_center:
-                    reward += 1.0
+                    reward += 1.5  # Increased reward for correct side in sharp turn
                 else:
-                    reward -= 1.0  # Penalize for being on the wrong side
+                    reward -= 0.5  # Reduced penalty for being on the wrong side
 
     # Reward staying on track
     if all_wheels_on_track and not is_offtrack:
@@ -71,22 +71,22 @@ def reward_function(params):
         elif distance_from_center <= marker_2:
             reward += 0.5
         elif distance_from_center <= marker_3:
-            reward += 0.1
+            reward += 0.2  # Slightly increased reward for being closer to center
 
         # Penalize for high steering angles to prevent zig-zagging
-        if steering_angle > 15:
-            reward *= 0.8
+        if steering_angle > 20:  # Relaxed angle threshold
+            reward *= 0.9  # Reduced penalty to 10%
 
         # Reward higher speeds
         SPEED_THRESHOLD = 3.5
         if speed > SPEED_THRESHOLD:
-            reward += 1.0
+            reward += 1.5  # Increased reward for higher speeds
         elif speed > 3.0:
-            reward += 0.5
+            reward += 0.7  # Slightly increased reward for moderate speeds
 
         # Reward progress made
         if steps > 0:
-            reward += (progress / steps) * 100
+            reward += (progress / steps) * 150  # Increased factor to incentivize faster progress
     else:
         reward = 1e-3  # Minimum reward for being off track
 
