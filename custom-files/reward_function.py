@@ -2,9 +2,10 @@ import math
 
 def reward_function(params):
     '''
-    Reward function optimized for Rose Raceway (counterclockwise)
+    Combined reward function for AWS DeepRacer optimized for Rose Raceway (counterclockwise).
+    Encourages correct positioning for upcoming turns and rewards maintaining high speeds.
     '''
-    # Read input parameters
+    # Track parameters
     track_width = params['track_width']
     distance_from_center = params['distance_from_center']
     steering_angle = abs(params['steering_angle'])
@@ -13,7 +14,32 @@ def reward_function(params):
     progress = params['progress']
     steps = params['steps']
     is_offtrack = params['is_offtrack']
-
+    is_left_of_center = params['is_left_of_center']
+    
+    # Waypoints and current position
+    waypoints = params['waypoints']
+    closest_waypoints = params['closest_waypoints']
+    heading = params['heading']
+    
+    # Calculate the direction of the next turn
+    next_point = waypoints[closest_waypoints[1]]
+    next_next_point = waypoints[(closest_waypoints[1] + 1) % len(waypoints)]
+    
+    track_direction = math.atan2(next_next_point[1] - next_point[1], next_next_point[0] - next_point[0])
+    track_direction = math.degrees(track_direction)
+    
+    # Calculate the difference between track direction and car's heading direction
+    direction_diff = track_direction - heading
+    direction_diff = (direction_diff + 180) % 360 - 180  # Normalize to [-180, 180]
+    
+    # Determine if the upcoming turn is left or right
+    if direction_diff > 10:  # Turn right
+        upcoming_turn = "right"
+    elif direction_diff < -10:  # Turn left
+        upcoming_turn = "left"
+    else:
+        upcoming_turn = "straight"
+    
     # Markers for distance from center
     marker_1 = 0.1 * track_width
     marker_2 = 0.2 * track_width
@@ -60,6 +86,23 @@ def reward_function(params):
         # Reward progress efficiently
         if steps > 0:
             reward += (progress / steps) * 150
+
+        # Positioning based on the upcoming turn
+        if upcoming_turn == "left":
+            if is_left_of_center:
+                reward += 1.0  # Encourage staying on the left before a left turn
+                if speed > 2.0:
+                    reward += 0.5  # Reward higher speed if positioned correctly
+            else:
+                reward -= 0.5  # Penalize being on the wrong side for a left turn
+        elif upcoming_turn == "right":
+            if not is_left_of_center:
+                reward += 1.0  # Encourage staying on the right before a right turn
+                if speed > 2.0:
+                    reward += 0.5  # Reward higher speed if positioned correctly
+            else:
+                reward -= 0.5  # Penalize being on the wrong side for a right turn
+
     else:
         reward = 1e-3  # Minimum reward for being off track
 
