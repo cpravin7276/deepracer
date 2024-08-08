@@ -88,20 +88,22 @@ def reward_function(params):
             reward += (progress / steps) * 150
 
         # Positioning based on the upcoming turn
+        TURN_REWARD = 1.5
+        TURN_PENALTY = 0.5
         if upcoming_turn == "left":
             if is_left_of_center:
-                reward += 1.0  # Encourage staying on the left before a left turn
+                reward += TURN_REWARD
                 if speed > 2.0:
                     reward += 0.5  # Reward higher speed if positioned correctly
             else:
-                reward -= 0.5  # Penalize being on the wrong side for a left turn
+                reward -= TURN_PENALTY  # Penalize being on the wrong side for a left turn
         elif upcoming_turn == "right":
             if not is_left_of_center:
-                reward += 1.0  # Encourage staying on the right before a right turn
+                reward += TURN_REWARD
                 if speed > 2.0:
                     reward += 0.5  # Reward higher speed if positioned correctly
             else:
-                reward -= 0.5  # Penalize being on the wrong side for a right turn
+                reward -= TURN_PENALTY  # Penalize being on the wrong side for a right turn
 
     else:
         reward = 1e-3  # Minimum reward for being off track
