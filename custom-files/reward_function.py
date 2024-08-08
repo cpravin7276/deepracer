@@ -3,7 +3,8 @@ import math
 def reward_function(params):
     '''
     Combined reward function for AWS DeepRacer optimized for Rose Raceway (counterclockwise).
-    Encourages correct positioning for upcoming turns and rewards maintaining high speeds.
+    Encourages correct positioning for upcoming turns, rewards maintaining high speeds,
+    and specifically rewards well-executed turns while penalizing high speed for U-turns.
     '''
     # Track parameters
     track_width = params['track_width']
@@ -31,6 +32,10 @@ def reward_function(params):
     # Calculate the difference between track direction and car's heading direction
     direction_diff = track_direction - heading
     direction_diff = (direction_diff + 180) % 360 - 180  # Normalize to [-180, 180]
+    
+    # Determine if the upcoming turn is a U-turn
+    TURN_THRESHOLD = 150  # degrees
+    is_U_turn = abs(direction_diff) > TURN_THRESHOLD
     
     # Determine if the upcoming turn is left or right
     if direction_diff > 10:  # Turn right
@@ -87,7 +92,7 @@ def reward_function(params):
         if steps > 0:
             reward += (progress / steps) * 150
 
-        # Positioning based on the upcoming turn
+        # Reward well-executed turns
         TURN_REWARD = 1.5
         TURN_PENALTY = 0.5
         if upcoming_turn == "left":
@@ -104,6 +109,11 @@ def reward_function(params):
                     reward += 0.5  # Reward higher speed if positioned correctly
             else:
                 reward -= TURN_PENALTY  # Penalize being on the wrong side for a right turn
+
+        # Penalize high speed for U-turns
+        U_TURN_SPEED_PENALTY = 0.4
+        if is_U_turn and speed > 2.0:
+            reward *= U_TURN_SPEED_PENALTY  # Penalize high speed for U-turns to encourage smoother turns
 
     else:
         reward = 1e-3  # Minimum reward for being off track
