@@ -83,7 +83,7 @@ def reward_function(params):
         SPEED_THRESHOLD = 3.5
         if speed >= SPEED_THRESHOLD:
             reward += 1.5
-         elif speed >= 3.0:
+        elif speed >= 3.0:
             reward += 1.0
         elif speed >= 2.5:
             reward += 0.8
