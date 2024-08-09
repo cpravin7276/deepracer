@@ -2,10 +2,11 @@ import math
 
 def reward_function(params):
     '''
-    Highly optimized reward function for AWS DeepRacer on Ross Raceway, counter-clockwise mode.
-    Focuses on minimizing lap time by promoting the optimal racing line, handling turns efficiently, and maintaining high speed.
+    Optimized reward function for AWS DeepRacer on Rose Raceway (counterclockwise).
+    Focuses on minimizing lap time by promoting the optimal racing line, handling turns efficiently,
+    maintaining high speed, and managing U-turns.
     '''
-    
+
     # Extract necessary parameters
     track_width = params['track_width']
     distance_from_center = params['distance_from_center']
@@ -14,11 +15,11 @@ def reward_function(params):
     waypoints = params['waypoints']
     closest_waypoints = params['closest_waypoints']
     heading = params['heading']
-    steering_angle = params['steering_angle']
+    steering_angle = abs(params['steering_angle'])
     progress = params['progress']
     steps = params['steps']
-    is_left_of_center = params['is_left_of_center']
     is_offtrack = params['is_offtrack']
+    is_left_of_center = params['is_left_of_center']
 
     # Start with a small base reward
     reward = 1.0
@@ -81,14 +82,9 @@ def reward_function(params):
     racing_line_bonus = 1.0
     if distance_from_center <= marker_1 and direction_diff < DIRECTION_THRESHOLD:
         reward += racing_line_bonus
-
-    # Encourage fast lap completion
-    REWARD_FOR_FAST_COMPLETION = 100
-    if progress == 100:
-        reward += REWARD_FOR_FAST_COMPLETION / (steps + 1)  # Adding +1 to avoid division by zero
-
-    # Adjust reward for tight corners based on expected radius of curvature
+    # Adjust reward for sharp corners and U-turns
     turn_radius = abs(prev_waypoint[0] - next_waypoint[0]) + abs(prev_waypoint[1] - next_waypoint[1])
+    SHARP_TURN_THRESHOLD = 15  # degrees
 
     if turn_radius < 0.5 * track_width:  # Sharp turn
         if speed < HIGH_SPEED_THRESHOLD:
@@ -99,12 +95,22 @@ def reward_function(params):
         if speed >= HIGH_SPEED_THRESHOLD:
             reward += 1.0  # Encourage high speed on gentle curves and straights
 
+    # Additional penalty for U-turns if speed is too high
+    U_TURN_SPEED_PENALTY = 0.4
+    if turn_radius < 0.3 * track_width and speed > 2.0:  # Identifying a U-turn scenario
+        reward *= U_TURN_SPEED_PENALTY
+
     # Recovery bonus: Encourage the car to get back to the optimal path if it's deviating
     if distance_from_center > marker_3:
         reward += 0.5  # Reward for correcting course towards the center
 
-    # Add a small penalty for excessive direction difference
-    if direction_diff > 20:
-        reward *= 0.6
+    # Reward for fast lap completion
+    REWARD_FOR_FAST_COMPLETION = 100
+    if progress == 100:
+        reward += REWARD_FOR_FAST_COMPLETION / (steps + 1)  # Adding +1 to avoid division by zero
+
+    # Reward progress efficiently
+    if steps > 0:
+        reward += (progress / steps) * 150
 
     return float(reward)
